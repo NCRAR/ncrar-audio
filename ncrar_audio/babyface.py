@@ -26,6 +26,17 @@ def load_volume_map():
     db = np.fromiter(VOLUME_MAP.values(), 'float32')
     return interp1d(db, scale, 'linear')
 
+P_VOLUME = re.compile('/1/volume(\d+)Val')
+P_MICGAIN = re.compile('/1/micgain(\d+)Val')
+
+
+def load_volume_map():
+    VOLUME_MAP_FILE = Path(__file__).parent / 'totalmix_fx_volume_map.json'
+    VOLUME_MAP = json.loads(VOLUME_MAP_FILE.read_text())
+    scale = np.fromiter(VOLUME_MAP.keys(), 'float32')
+    db = np.fromiter(VOLUME_MAP.values(), 'float32')
+    return interp1d(db, scale, 'linear')
+
 
 class Babyface(SoundDevice):
 
@@ -40,7 +51,6 @@ class Babyface(SoundDevice):
     def __init__(self, output_channels='earphones', trigger_channels=None,
                  ip_address=None, send_port=7001, recv_port=9001,
                  use_osc=True):
-
         self._volume_db = {}
         self._mic_gain_db = {}
         self._lock = Lock()
@@ -129,23 +139,3 @@ class Babyface(SoundDevice):
             else:
                 value = float(value.split(' ')[0])
             self._mic_gain_db[channel] = value
-
-
-def test_ramped_tone():
-    import logging
-    logging.basicConfig(level='INFO')
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    from psiaudio.api import ramped_tone, FlatCalibration
-    calibration = FlatCalibration.unity()
-
-    device = Babyface()
-    frequencies = np.array([1e3, 2e3])[:, np.newaxis]
-    tone = ramped_tone(device.fs, frequency=frequencies, duration=1,
-                       rise_time=0.1, level=-6, calibration=calibration)
-    recording = device.acquire(tone.T)
-    plt.plot(recording)
-    plt.axis(ymin=-10, ymax=10)
-    plt.show()
