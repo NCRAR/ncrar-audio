@@ -108,11 +108,20 @@ if __name__ == '__main__':
     device = OSCClient()
     osc_messages = [
         ["/1/busPlayback", 1.0],
-        ["/1/volume1",0.7],
         ["/1/busInput", 1.0],
-        ["/1/volume1",0.7],
         ["/1/busOutput", 1.0],
         ["/1/volume1",0.7],
+        ["/1/volume2",0.7],
+        ["/1/volume3",0.7],
+        ["/1/volume4",0.7],
+        ["/1/volume5",0.7],
+        ["/1/volume6",0.7],
+        ["/1/volume7",0.7],
+        ["/1/volume8",0.7],
+        ["/1/volume9",0.7],
+        ["/1/volume10",0.7],
+        ["/1/volume11",0.7],
+        ["/1/volume12",0.7],
     ]
     device.send_messages(osc_messages)
     time.sleep(1)
