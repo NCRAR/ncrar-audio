@@ -115,6 +115,7 @@ class Babyface(SoundDevice):
         messages = [(f'/1/volume{i}', volume) for i in channels]
         self.osc_client.send_messages(messages)
 
+<<<<<<< HEAD
     def set_mic_gain(self, db, channels=None):
         if channels is None:
             channels = np.arange(12) + 1
