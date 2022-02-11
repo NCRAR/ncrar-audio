@@ -11,6 +11,7 @@ from scipy.interpolate import interp1d
 
 from .osc_client import OSCClient
 from .sound_device import SoundDevice
+import sounddevice as sd
 
 P_VOLUME = re.compile('/1/volume(\d+)Val')
 P_MICGAIN = re.compile('/1/micgain(\d+)Val')
