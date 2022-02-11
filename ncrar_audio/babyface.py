@@ -11,6 +11,8 @@ from scipy.interpolate import interp1d
 
 from .osc_client import OSCClient
 from .sound_device import SoundDevice
+from .triggers import make_analog_trigger_cos
+
 import sounddevice as sd
 
 P_VOLUME = re.compile('/1/volume(\d+)Val')
@@ -27,8 +29,18 @@ def load_volume_map():
 
 class Babyface(SoundDevice):
 
-    def __init__(self, ip_address=None, send_port=7001, recv_port=9001,
+    output_map = {
+        'XLR': [0, 1],
+        'XLR1': [0],
+        'XLR2': [1],
+        'earphones': [2, 3],
+        None: [],
+    }
+
+    def __init__(self, output_channels='earphones', trigger_channels=None,
+                 ip_address=None, send_port=7001, recv_port=9001,
                  use_osc=True):
+
         self._volume_db = {}
         self._mic_gain_db = {}
         self._lock = Lock()
@@ -39,8 +51,29 @@ class Babyface(SoundDevice):
             self.osc_client.dispatch.map('/1/volume*Val', self._volume_updated)
             self.osc_client.dispatch.map('/1/micgain*Val', self._mic_gain_updated)
 
+        self._output_channels = []
+        self._trigger_channels = []
+        self.set_output(output_channels)
+        self.set_trigger(trigger_channels)
+
         name = 'ASIO Fireface USB'
         super().__init__(name, name, input_scale=0.3395)
+
+    def set_output(self, output_channels):
+        self._output_channels = self.output_map[output_channels]
+        self._output_map = self._output_channels + self._trigger_channels
+
+    def set_trigger(self, trigger_channels):
+        self._trigger_channels = self.output_map[trigger_channels]
+        self._output_map = self._output_channels + self._trigger_channels
+
+    def play(self, waveform):
+        if self._trigger_channels:
+            trigger = make_analog_trigger_cos(self.fs, waveform.shape[-1], 128*3)
+            trigger = np.repeat(trigger[np.newaxis],
+                                len(self._trigger_channels), 0)
+            waveform = np.vstack((waveform, trigger))
+        super().play(waveform, self._output_map)
 
     def set_volume(self, db, channels=None):
         if channels is None:
