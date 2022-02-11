@@ -1,6 +1,7 @@
 import logging
 log = logging.getLogger(__name__)
 
+from collections.abc import Iterable
 import threading
 
 import numpy as np
@@ -98,38 +99,71 @@ class SoundDevice:
                 if event.wait(0.1):
                     break
 
-    def play(self, waveform):
+    def play(self, waveform, output_channels=None):
+        output_settings = None
+        input_settings = None
+        if output_channels is None:
+            output_channels = len(waveform)
+        elif isinstance(output_channels, Iterable):
+            if len(output_channels) != len(waveform):
+                m = 'Output mapping of channels does not match waveform shape'
+                raise ValueError(m)
+            output_settings = sd.AsioSettings(output_channels)
+            output_channels = len(output_channels)
+
         self._start_stream(
             sd.OutputStream,
             device=self.output_device,
             samplerate=self.fs,
             blocksize=1024,
             callback=PlayCallbackContext(waveform.T),
-            channels=len(waveform),
+            channels=output_channels,
+            extra_settings=output_settings,
         )
 
-    def acquire(self, waveform, input_channels=1):
-        waveform = waveform.T
-        recording = np.zeros((len(waveform), input_channels), dtype='float32')
+    def acquire(self, waveform, input_channels=1, output_channels=None):
+        if waveform.ndim == 1:
+            waveform = waveform[np.newaxis]
+        output_settings = None
+        input_settings = None
+        if output_channels is None:
+            output_channels = len(waveform)
+        elif isinstance(output_channels, Iterable):
+            if len(output_channels) != len(waveform):
+                m = 'Output mapping of channels does not match waveform shape'
+                raise ValueError(m)
+            output_settings = sd.AsioSettings(output_channels)
+            output_channels = len(output_channels)
+        if isinstance(input_channels, Iterable):
+            input_settings = sd.AsioSettings(input_channels)
+            input_channels = len(input_channels)
+
+        recording = np.zeros((waveform.shape[-1], input_channels), dtype='double')
         stream = self._start_stream(
             sd.Stream,
             device=(self.input_device, self.output_device),
             samplerate=self.fs,
             blocksize=1024,
-            callback=PlayRecordCallbackContext(recording, waveform, self.input_scale),
-            channels=(input_channels, waveform.shape[-1])
+            callback=PlayRecordCallbackContext(recording, waveform.T, self.input_scale),
+            channels=(input_channels, output_channels),
+            extra_settings=(input_settings, output_settings),
         )
         return recording.T
 
-    def record(self, n_samples, n_channels):
-        log.info('Recording %d samples from %d channels', n_samples, n_channels)
-        recording = np.zeros((n_samples, n_channels))
+    def record(self, n_samples, input_channels):
+        input_settings = None
+        if isinstance(input_channels, Iterable):
+            input_settings = sd.AsioSettings(input_channels)
+            input_channels = len(input_channels)
+
+        recording = np.zeros((n_samples, input_channels))
         self._start_stream(
             sd.InputStream,
             device=self.input_device,
             samplerate=self.fs,
             blocksize=1024,
             callback=RecordCallbackContext(recording, self.input_scale),
-            channels=n_channels,
+            channels=input_channels,
+            extra_settings=input_settings,
         )
         return recording.T
