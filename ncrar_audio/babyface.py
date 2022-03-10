@@ -75,6 +75,28 @@ class Babyface(SoundDevice):
             waveform = np.vstack((waveform, trigger))
         super().play(waveform, self._output_map)
 
+    def play_mono(self, waveform, side):
+        if waveform.ndim != 1:
+            raise ValueError('Only a single waveform can be provided')
+        if len(self._output_channels) == 1:
+            self.play(waveform)
+        silence = np.zeros_like(waveform)
+        if side == 'left':
+            waveform = np.vstack((waveform, silence))
+        elif side == 'right':
+            waveform = np.vstack((silence, waveform))
+        else:
+            raise ValueError('side must be "right" or "left"')
+        self.play(waveform)
+
+    def play_stereo(self, waveform):
+        if waveform.ndim != 1:
+            raise ValueError('Only a single waveform can be provided')
+        if len(self._output_channels) == 1:
+            raise ValueError('Only a single output channel available')
+        waveform = np.vstack((waveform, waveform))
+        self.play(waveform)
+
     def set_volume(self, db, channels=None):
         if channels is None:
             channels = np.arange(12) + 1
