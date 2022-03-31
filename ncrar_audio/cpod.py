@@ -1,6 +1,18 @@
 import pyxid2
 
 
+class CodeManager:
+
+    def __init__(self, cpod):
+        self.cpod = cpod
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cpod.clear_code()
+
+
 class CPod:
 
     def __init__(self, pulse_duration=300e-3):
@@ -15,6 +27,7 @@ class CPod:
     def set_code(self, code):
         bitmask = (code << 1) | 1
         self.dev.set_lines(bitmask)
+        return CodeManager(self)
 
     def clear_code(self):
         self.dev.set_lines(0)
