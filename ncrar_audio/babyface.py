@@ -11,7 +11,7 @@ from scipy.interpolate import interp1d
 
 from .osc_client import OSCClient
 from .sound_device import SoundDevice
-from .triggers import make_analog_trigger_cos
+from . import triggers
 
 import sounddevice as sd
 
@@ -69,7 +69,8 @@ class Babyface(SoundDevice):
 
     def play(self, waveform):
         if self._trigger_channels:
-            trigger = make_analog_trigger_cos(self.fs, waveform.shape[-1], 128*3)
+            #trigger = triggers.make_analog_trigger_cos(self.fs, waveform.shape[-1], 128*1, 1)
+            trigger = triggers.make_analog_trigger(self.fs, waveform.shape[-1])
             trigger = np.repeat(trigger[np.newaxis],
                                 len(self._trigger_channels), 0)
             waveform = np.vstack((waveform, trigger))

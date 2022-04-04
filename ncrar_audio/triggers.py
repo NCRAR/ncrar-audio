@@ -1,14 +1,15 @@
 import numpy as np
 
 
-def make_analog_trigger(n):
-    trigger = np.zeros(n, dtype=stim.dtype)
-    trigger[:100] = 1
+def make_analog_trigger(fs, n, duration=0.1):
+    n_samp = int(round(duration * fs))
+    trigger = np.zeros(n)
+    trigger[:n_samp] = 1
     return trigger
 
 
-def make_analog_trigger_cos(fs, n, pulse_frequency=128):
-    n_samp = int(round((1 / pulse_frequency) * fs))
+def make_analog_trigger_cos(fs, n, pulse_frequency=128, pulse_cycles=1):
+    n_samp = int(round((1 / pulse_frequency) * fs)) * pulse_cycles
     t = np.arange(n_samp) / fs
     pulse = np.sin(2 * np.pi * pulse_frequency * t)
 
