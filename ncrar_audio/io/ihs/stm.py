@@ -108,7 +108,10 @@ def read_stm(filename):
         for i in range(50):
             caldata[i] = _read_description(cal_description, fh)
 
+        waveform_start = fh.tell()
         b_waveform = fh.read(general['duration'] * 2)
+        waveform_end = fh.tell()
+
         waveform = np.frombuffer(b_waveform, 'h')
 
         # Make sure the file was parsed properly
@@ -125,4 +128,8 @@ def read_stm(filename):
         'component_headers': components,
         'calibration_data': caldata,
         'waveform': waveform,
+        'file_stats': {
+            'waveform_start': waveform_start,
+            'waveform_end': waveform_end,
+        },
     }
