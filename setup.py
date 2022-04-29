@@ -4,6 +4,8 @@ from setuptools import find_packages, setup
 
 requirements = [
     'numpy',
+    'scipy',
+    'pandas',
     'python-osc',
     'sounddevice',
 ]
@@ -27,7 +29,7 @@ else:
 
 setup(
     name='ncrar-audio',
-    author='Brad Buran',
+    author='NCRAR audio development team',
     author_email='info@bradburan.com',
     install_requires=requirements,
     extras_require=extras_require,
