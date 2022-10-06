@@ -16,10 +16,9 @@ def play_tones():
     frequencies = np.array([1e3, 2e3])[:, np.newaxis]
     tones = ramped_tone(device.fs, frequency=frequencies, duration=5,
                        rise_time=0.1, level=-18.94, calibration=calibration)
-    #recording = device.acquire(tones, input_channels=2)
-    #recording = signal.detrend(recording)
-    #psd = util.db(util.psd_df(recording, device.fs))
-    psd = util.db(util.psd_df(tones, device.fs))
+    recording = device.acquire(tones, input_channels=2)
+    recording = signal.detrend(recording)
+    psd = util.db(util.psd_df(recording, device.fs))
 
     # The 1: slice along the columns axis of the dataframe throws out the DC
     # component of the FFT which tends to throw off the Y-axis limits since we
