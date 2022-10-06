@@ -16,13 +16,30 @@ class OSCClient:
     Control protocol.
     '''
 
-    def __init__(self, ip_address=None, send_port=7001, recv_port=9001):
+    def __init__(self, ip_address=None, send_port=7001, recv_port=9001,
+                 warn_on_unhandled=False):
+        '''
+        Parameters
+        ----------
+        ip_address : {None, IP address}
+            If None, uses the IP address assigned to the local machine.
+        send_port : int
+            Port to send messages on.
+        recv_port : int
+            Port to receive messages on.
+        warn_on_unhandled : bool
+            If True, log all unhandled resposnes from the server to the console
+            as a warning. This is usually only for debugging purposes if you
+            are trying to figure out what OSC responses you might want to be
+            handling.
+        '''
         if ip_address is None:
             hostname = socket.gethostname()
             ip_address = socket.gethostbyname(hostname)
         self.send_port = send_port
         self.recv_port = recv_port
         self.ip_address = ip_address
+        self.warn_on_unhandled = warn_on_unhandled
         if self.recv_port is not None:
             self._configure_server()
         self._configure_client()
@@ -34,6 +51,7 @@ class OSCClient:
         # default, all messages will get passed to a callback that logs the
         # unhandled message (useful for knowing whether we're "missing out".
         self.dispatch = dispatcher.Dispatcher()
+        self.dispatch.map('/', self._heartbeat)
         self.dispatch.set_default_handler(self._log_unhandled_message)
 
         addr = (self.ip_address, self.recv_port)
@@ -50,6 +68,11 @@ class OSCClient:
                                                  self.send_port)
         log.info('Set up client to send on %s:%d', self.ip_address,
                  self.send_port)
+
+    def _heartbeat(self, address, value):
+        # This is a heartbeat message that is often transmitted by the OSC
+        # server.
+        pass
 
     def _log_unhandled_message(self, *args):
         m = 'Recieved an unhandled OSC response: address=%s, value=%r'
