@@ -1,6 +1,4 @@
-- [ ] Update version number in `ncrar_audio/__init__.py`
-- [ ] Commit the changes
-- [ ] Build sdist and wheel `python setup.py sdist bdist_wheel --universal`
+- [ ] Build using `python -m build .`
 - [ ] Upload to test server via twine `twine upload -r testpypi-consult dist/*`
 - [ ] Create test env: `conda create -n test python` 
 - [ ] Install in test env: 

@@ -1,1 +1,1 @@
-__version__ = '2021.12.14'
+from .version import __version__
