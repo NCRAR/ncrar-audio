@@ -15,7 +15,7 @@ class CodeManager:
 
 class CPod:
 
-    def __init__(self, pulse_duration=300e-3):
+    def __init__(self, pulse_duration=0):
         # Get a list of all attached XID devices then use the first one. This
         # assumes that we have only one XID device (i.e., the Cedrus C-Pod)
         # attached.
