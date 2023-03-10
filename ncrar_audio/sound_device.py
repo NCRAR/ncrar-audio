@@ -79,7 +79,7 @@ class PlayRecordCallbackContext(BaseCallbackContext):
 
 class SoundDevice:
 
-    def __init__(self, input_device, output_device, input_scale=1):
+    def __init__(self, input_device, output_device, input_scale=1, fs=None):
         self.input_device = input_device
         self.input_info = sd.query_devices(self.input_device)
         self.input_scale = input_scale
@@ -89,7 +89,10 @@ class SoundDevice:
         self.output_info = sd.query_devices(self.output_device)
         log.info('Properties for output device %r: %r', self.output_device, self.output_info)
 
-        self.fs = self.input_info['default_samplerate']
+        if fs is None:
+            self.fs = self.input_info['default_samplerate']
+        else:
+            self.fs = fs
 
     def _start_stream(self, stream_class, **stream_kw):
         event = threading.Event()
