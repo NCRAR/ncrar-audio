@@ -4,7 +4,7 @@ import numpy as np
 def make_analog_trigger(fs, n, duration=0.1):
     n_samp = int(round(duration * fs))
     trigger = np.zeros(n)
-    trigger[:n_samp] = 1
+    trigger[:n_samp] = 0.5
     return trigger
 
 
