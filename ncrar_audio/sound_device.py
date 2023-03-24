@@ -6,6 +6,7 @@ import threading
 
 import numpy as np
 import sounddevice as sd
+sd.default.latency = 'low'
 
 
 class BaseCallbackContext:
@@ -95,14 +96,20 @@ class SoundDevice:
             self.fs = fs
 
     def _start_stream(self, stream_class, **stream_kw):
-        event = threading.Event()
-        stream = stream_class(finished_callback=event.set, **stream_kw)
-        with stream:
-            while True:
-                if event.wait(0.1):
-                    break
+        self.event = threading.Event()
+        return stream_class(finished_callback=self.event.set, **stream_kw)
 
-    def play(self, waveform, output_channels=None):
+    def wait(self, timeout=0.1):
+        return self.event.wait(timeout)
+
+    def join(self):
+        while True:
+            if self.event.wait(0.1):
+                break
+
+    def play_async(self, waveform, output_channels=None):
+        if waveform.ndim == 1:
+            waveform = waveform[np.newaxis]
         output_settings = None
         input_settings = None
         if output_channels is None:
@@ -114,7 +121,7 @@ class SoundDevice:
             output_settings = sd.AsioSettings(output_channels)
             output_channels = len(output_channels)
 
-        self._start_stream(
+        return self._start_stream(
             sd.OutputStream,
             device=self.output_device,
             samplerate=self.fs,
@@ -123,6 +130,10 @@ class SoundDevice:
             channels=output_channels,
             extra_settings=output_settings,
         )
+
+    def play(self, waveform, output_channels=None):
+        with self.play_async(waveform, output_channels) as stream:
+            self.join()
 
     def acquire(self, waveform, input_channels=1, output_channels=None):
         if waveform.ndim == 1:
@@ -151,6 +162,8 @@ class SoundDevice:
             channels=(input_channels, output_channels),
             extra_settings=(input_settings, output_settings),
         )
+        with stream:
+            self.join()
         return recording.T
 
     def record(self, n_samples, input_channels):
@@ -160,7 +173,7 @@ class SoundDevice:
             input_channels = len(input_channels)
 
         recording = np.zeros((n_samples, input_channels))
-        self._start_stream(
+        stream = self._start_stream(
             sd.InputStream,
             device=self.input_device,
             samplerate=self.fs,
@@ -169,4 +182,6 @@ class SoundDevice:
             channels=input_channels,
             extra_settings=input_settings,
         )
+        with stream:
+            self.join()
         return recording.T
