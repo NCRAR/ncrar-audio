@@ -21,7 +21,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 docs = ["sphinx", "sphinx_rtd_theme", "pygments-enaml"]
 test = ["pytest", "pytest-benchmark"]
-examples = ["psiaudio"]
+examples = ["psiaudio", "matplotlib"]
 
 [build-system]
 requires = ["setuptools>=61.2", "wheel", "setuptools_scm[toml]>=3.4.3"]
