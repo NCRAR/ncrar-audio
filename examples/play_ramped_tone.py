@@ -1,3 +1,6 @@
+from pathlib import Path
+from psiaudio.stim import load_wav
+
 import logging
 logging.basicConfig(level='INFO')
 
@@ -11,28 +14,21 @@ from psiaudio import util
 
 from ncrar_audio.babyface import Babyface
 
+base_path = Path(r'C:\Users\biosemi\Desktop\Koerner_CDA2')
+wav_path = base_path / 'tone1k_150ms.wav'
+
 
 def main():
     calibration = FlatCalibration.unity()
-    device = Babyface('earphones', 'XLR1')
-    frequencies = np.array([1e3, 2e3])[:, np.newaxis]
-    tone = ramped_tone(device.fs, frequency=frequencies, duration=0.5,
-                       rise_time=2.5e-3, level=-16.7, calibration=calibration)
+    device = Babyface(output_channels='earphones', trigger_channels='XLR1',
+                      use_osc=False)
 
-    #device.set_output('XLR')
-    #device.play(tone)
+    wav = load_wav(device.fs, wav_path)
+    wav = wav[:, :2].T
+
     for i in range(10):
-        device.play(tone)
-
-    return
-    recording = device.play(tone, 2, [0, 3])
-    psd = util.db(util.psd_df(recording, device.fs)).iloc[:, 1:]
-
-    plt.plot(psd.columns, psd.iloc[0].values, label='In 1')
-    plt.plot(psd.columns, psd.iloc[1].values, label='In 2')
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Signal (dBVrms)')
-    plt.show()
+        with device.play(wav):
+            device.join()
 
 
 if __name__ == '__main__':
