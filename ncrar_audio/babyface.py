@@ -77,14 +77,21 @@ class Babyface(SoundDevice):
         self._trigger_channels = self.output_map[trigger_channels]
         self._output_map = self._output_channels + self._trigger_channels
 
+    def add_trigger(self, waveform):
+        trigger = triggers.make_analog_trigger(self.fs, waveform.shape[-1])
+        trigger = np.repeat(trigger[np.newaxis],
+                            len(self._trigger_channels), 0)
+        return np.vstack((waveform, trigger))
+
     def play(self, waveform):
         if self._trigger_channels:
-            #trigger = triggers.make_analog_trigger_cos(self.fs, waveform.shape[-1], 128*1, 1)
-            trigger = triggers.make_analog_trigger(self.fs, waveform.shape[-1])
-            trigger = np.repeat(trigger[np.newaxis],
-                                len(self._trigger_channels), 0)
-            waveform = np.vstack((waveform, trigger))
-        super().play(waveform, self._output_map)
+            waveform = self.add_trigger(waveform)
+        return super().play(waveform, self._output_map)
+
+    def acquire(self, waveform, input_channels):
+        if self._trigger_channels:
+            waveform = self.add_trigger(waveform)
+        return super().acquire(waveform, input_channels, self._output_map)
 
     def play_mono(self, waveform, side):
         if waveform.ndim != 1:
