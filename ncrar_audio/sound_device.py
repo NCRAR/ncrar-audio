@@ -47,6 +47,26 @@ class RecordCallbackContext(BaseCallbackContext):
         self.input_buffer[i:i + valid_samples] = indata[:valid_samples] / self.input_scale
 
 
+class QueueCallbackContext:
+
+    def __init__(self, queues):
+        super().__init__()
+        self.queues = queues
+
+    def __call__(self, outdata, samples, time, status):
+        if status:
+            log.warning('portaudio callback status: %r', status)
+        for i, q in enumerate(self.queues):
+            outdata[:, i] = q.pop_buffer(samples)
+
+        # Check if any queues are empty
+        for q in self.queues:
+            if not q._empty:
+                break
+        else:
+            raise sd.CallbackStop
+
+
 class PlayCallbackContext(BaseCallbackContext):
 
     def __init__(self, output_buffer):
@@ -121,6 +141,26 @@ class SoundDevice:
         while True:
             if self.event.wait(0.1):
                 break
+
+    def play_async_queue(self, queues, output_channels=None):
+        output_settings = None
+        input_settings = None
+        if output_channels is None:
+            output_channels = len(queues)
+        elif isinstance(output_channels, Iterable):
+            if len(output_channels) != len(queues):
+                m = 'Output mapping of channels does not match waveform shape'
+                raise ValueError(m)
+            output_settings = sd.AsioSettings(output_channels)
+            output_channels = len(output_channels)
+        return self._start_stream(
+            sd.OutputStream,
+            device=self.output_device,
+            samplerate=self.fs,
+            blocksize=1024,
+            callback=QueueCallbackContext(queues),
+            channels=output_channels,
+        )
 
     def play_async(self, waveform, output_channels=None):
         if waveform.ndim == 1:
