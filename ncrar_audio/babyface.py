@@ -85,7 +85,7 @@ class Babyface(SoundDevice):
         self._output_map = self._output_channels + self._trigger_channels
 
     def add_trigger(self, waveform):
-        trigger = triggers.make_analog_trigger(self.fs, waveform.shape[-1])
+        trigger = triggers.make_trigger(self.fs, waveform.shape[-1])
         trigger = np.repeat(trigger[np.newaxis],
                             len(self._trigger_channels), 0)
         return np.vstack((waveform, trigger))
