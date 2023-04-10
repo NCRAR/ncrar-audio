@@ -146,7 +146,7 @@ class SoundDevice:
             if self.event.wait(0.1):
                 break
 
-    def play_async_queue(self, queues, output_channels=None):
+    def play_async_queue(self, queues, output_channels=None, cb=None):
         output_settings = None
         input_settings = None
         if output_channels is None:
@@ -164,6 +164,7 @@ class SoundDevice:
             blocksize=1024,
             callback=QueueCallbackContext(queues),
             channels=output_channels,
+            extra_settings=output_settings,
         )
 
     def play_queue(self, queues, output_channels=None):
