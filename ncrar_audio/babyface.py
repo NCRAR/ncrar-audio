@@ -95,6 +95,9 @@ class Babyface(SoundDevice):
             waveform = self.add_trigger(waveform)
         return super().play(waveform, self._output_map, cb=cb)
 
+    def play_queue(self, queues):
+        return super().play_queue(queues, self._output_map)
+
     def acquire(self, waveform, input_channels):
         if self._trigger_channels:
             waveform = self.add_trigger(waveform)
