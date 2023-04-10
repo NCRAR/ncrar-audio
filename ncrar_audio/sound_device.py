@@ -11,8 +11,11 @@ sd.default.latency = 'low'
 
 class BaseCallbackContext:
 
-    def __init__(self):
+    def __init__(self, cb=None):
         self.i = 0
+        if cb is None:
+            cb = lambda x: x
+        self.cb = cb
 
     def _valid_samples(self, samples, status):
         if status:
@@ -27,6 +30,7 @@ class BaseCallbackContext:
         valid_samples = min(samples_remaining, samples)
         result = self.i, valid_samples
         self.i += valid_samples
+        self.cb(valid_samples)
         return result
 
     def __call__(self, *args):
@@ -35,8 +39,8 @@ class BaseCallbackContext:
 
 class RecordCallbackContext(BaseCallbackContext):
 
-    def __init__(self, input_buffer, input_scale):
-        super().__init__()
+    def __init__(self, input_buffer, input_scale, cb=None):
+        super().__init__(cb=cb)
         self.input_buffer = input_buffer
         self.input_scale = input_scale
         self.n = len(input_buffer)
@@ -69,8 +73,8 @@ class QueueCallbackContext:
 
 class PlayCallbackContext(BaseCallbackContext):
 
-    def __init__(self, output_buffer):
-        super().__init__()
+    def __init__(self, output_buffer, cb=None):
+        super().__init__(cb=cb)
         self.output_buffer = output_buffer
         self.n = len(output_buffer)
 
@@ -83,8 +87,8 @@ class PlayCallbackContext(BaseCallbackContext):
 
 class PlayRecordCallbackContext(BaseCallbackContext):
 
-    def __init__(self, input_buffer, output_buffer, input_scale):
-        super().__init__()
+    def __init__(self, input_buffer, output_buffer, input_scale, cb=None):
+        super().__init__(cb=cb)
         self.input_buffer = input_buffer
         self.output_buffer = output_buffer
         self.input_scale = input_scale
@@ -162,7 +166,11 @@ class SoundDevice:
             channels=output_channels,
         )
 
-    def play_async(self, waveform, output_channels=None):
+    def play_queue(self, queues, output_channels=None):
+        with self.play_async_queue(queues, output_channels) as stream:
+            self.join()
+
+    def play_async(self, waveform, output_channels=None, cb=None):
         if waveform.ndim == 1:
             waveform = waveform[np.newaxis]
         output_settings = None
@@ -181,13 +189,13 @@ class SoundDevice:
             device=self.output_device,
             samplerate=self.fs,
             blocksize=1024,
-            callback=PlayCallbackContext(waveform.T),
+            callback=PlayCallbackContext(waveform.T, cb=cb),
             channels=output_channels,
             extra_settings=output_settings,
         )
 
-    def play(self, waveform, output_channels=None):
-        with self.play_async(waveform, output_channels) as stream:
+    def play(self, waveform, output_channels=None, cb=None):
+        with self.play_async(waveform, output_channels, cb=cb) as stream:
             self.join()
 
     def acquire(self, waveform, input_channels=1, output_channels=None):

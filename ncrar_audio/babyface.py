@@ -90,10 +90,10 @@ class Babyface(SoundDevice):
                             len(self._trigger_channels), 0)
         return np.vstack((waveform, trigger))
 
-    def play(self, waveform):
+    def play(self, waveform, cb=None):
         if self._trigger_channels:
             waveform = self.add_trigger(waveform)
-        return super().play(waveform, self._output_map)
+        return super().play(waveform, self._output_map, cb=cb)
 
     def acquire(self, waveform, input_channels):
         if self._trigger_channels:
