@@ -45,6 +45,8 @@ class Babyface(SoundDevice):
         'XLR1': [0],
         'XLR2': [1],
         'earphones': [2, 3],
+        'earphones_left': [2],
+        'earphones_right': [3],
         None: [],
     }
 
@@ -70,7 +72,12 @@ class Babyface(SoundDevice):
         super().__init__(name, name, input_scale=0.3395)
 
     def set_output(self, output_channels):
-        self._output_channels = self.output_map[output_channels]
+        if isinstance(output_channels, str):
+            output_channels = [output_channels]
+
+        self._output_channels = []
+        for oc in output_channels:
+            self._output_channels.extend(self.output_map[oc])
         self._output_map = self._output_channels + self._trigger_channels
 
     def set_trigger(self, trigger_channels):
