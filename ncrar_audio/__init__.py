@@ -1,5 +1,7 @@
 from .version import __version__
 
+import os
+
 
 def disable_quick_edit():
     # From https://stackoverflow.com/questions/73486528/python-script-pausing-in-cmd
@@ -19,4 +21,8 @@ def disable_quick_edit():
 
 # This ensures that running scripts from the command line does not accidentally
 # pause the script (such as for tqdm callbacks).
-disable_quick_edit()
+if os.name == 'nt':
+    try:
+        disable_quick_edit()
+    except:
+        pass
