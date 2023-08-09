@@ -1,6 +1,9 @@
+NCRAR audio
+-----------
+
 Copyright notice 
-................
-© 2021-2022, ncrar-audio development team
+
+© 2021-2023, ncrar-audio development team
 
 Portions of this project were funded by:
 
