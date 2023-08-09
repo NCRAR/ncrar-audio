@@ -77,6 +77,21 @@ class PlayRecordCallbackContext(BaseCallbackContext):
 
 
 class SoundDevice:
+    '''
+    Basic wrapper around an audio device that provides play and record
+    functionality.
+
+    Parameters
+    ----------
+    input_device : string
+        Name of input device as seen by portaudio.
+    output_device : string
+        Name of output device as seen by portaudio.
+    input_scale : float
+        Scaling factor to apply to input stream. This is primarily used by the
+        ASIO Fireface interface for the Babyface since the input data needs to
+        be scaled by ~1/3 to match the expected amplitude.
+    '''
 
     def __init__(self, input_device, output_device, input_scale=1):
         self.input_device = input_device
