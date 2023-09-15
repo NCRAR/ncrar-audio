@@ -92,6 +92,7 @@ class OSCClient:
 
         Each message must be a two or three element iterable. The following are
         valid message formats:
+
             ('/1/volume1', 1.0, '/1/volume1'),
             ('/1/busOutput', 1),
         '''

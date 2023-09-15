@@ -1,0 +1,2 @@
+pydata_sphinx_theme
+ncrar_audio @ git+https://github.com/ncrar/ncrar-audio
