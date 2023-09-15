@@ -15,19 +15,8 @@ from . import triggers
 
 import sounddevice as sd
 
-P_VOLUME = re.compile('/1/volume(\d+)Val')
-P_MICGAIN = re.compile('/1/micgain(\d+)Val')
-
-
-def load_volume_map():
-    VOLUME_MAP_FILE = Path(__file__).parent / 'totalmix_fx_volume_map.json'
-    VOLUME_MAP = json.loads(VOLUME_MAP_FILE.read_text())
-    scale = np.fromiter(VOLUME_MAP.keys(), 'float32')
-    db = np.fromiter(VOLUME_MAP.values(), 'float32')
-    return interp1d(db, scale, 'linear')
-
-P_VOLUME = re.compile('/1/volume(\d+)Val')
-P_MICGAIN = re.compile('/1/micgain(\d+)Val')
+P_VOLUME = re.compile(r'/1/volume(\d+)Val')
+P_MICGAIN = re.compile(r'/1/micgain(\d+)Val')
 
 
 def load_volume_map():
