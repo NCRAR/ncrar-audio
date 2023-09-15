@@ -1,1 +1,3 @@
+matplotlib
+IPython
 ncrar_audio[docs] @ git+https://github.com/ncrar/ncrar-audio
