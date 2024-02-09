@@ -1,3 +1,4 @@
+from pathlib import Path
 import struct
 
 import numpy as np
@@ -33,7 +34,7 @@ def read_cam(filename):
     }
 
 
-    with filename.open('rb') as fh:
+    with Path(filename).open('rb') as fh:
         fh.seek(0, 2)
         fh_nbytes = fh.tell()
         fh.seek(0, 0)
