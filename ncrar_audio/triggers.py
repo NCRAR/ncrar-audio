@@ -29,7 +29,8 @@ def make_trigger(fs, n, shape='square', shape_settings=None):
     fn = globals()[f'_{shape}_waveform']
     trig = fn(fs, **shape_settings)
     if len(trig) > n:
-        raise ValueError('Trigger sequence is too long')
+        n_extra = len(trig) - n
+        raise ValueError(f'Trigger sequence is too long by {n_extra} samples')
 
     waveform = np.zeros(n)
     waveform[:len(trig)] = trig
