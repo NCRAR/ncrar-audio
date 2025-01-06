@@ -1,6 +1,10 @@
 NCRAR audio
 -----------
 
+To find out what audio devices are installed:
+
+    python -m sounddevice
+
 Copyright notice 
 
 © 2021-2023, ncrar-audio development team
