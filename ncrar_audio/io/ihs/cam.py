@@ -1,3 +1,6 @@
+import logging
+log = logging.getLogger(__name__)
+
 from pathlib import Path
 import struct
 
@@ -10,7 +13,7 @@ from scipy import signal
 # so I've done my best. The important thing is that the epochs are properly
 # returned!
 
-def read_cam(filename):
+def read_cam(filename, header_only=False):
     description = [
         ('std_ihs_ep', 1000, 'h'),
         ('cont_data_suppl', 4000, 'i'),
@@ -50,23 +53,24 @@ def read_cam(filename):
             else:
                 result[name] = np.fromfile(fh, dtype=dtype, count=count)
 
-        # There are four channels. the int16 (2-byte) samples are stored in
-        # interleaved fashion.
-        fh.seek(200000, 0)
-        recording = np.fromfile(fh, dtype='h').reshape((-1, 4)).T
-        dio = recording[-1] / (2 ** (16-1))
-        stim_indices = np.flatnonzero(dio < -0.1)
-        result['recording'] = recording[:3]
-        # scale to fraction of sys.maxint
-        result['dio'] = dio
-        result['stim_indices'] = stim_indices
+        if not header_only:
+            # There are four channels. the int16 (2-byte) samples are stored in
+            # interleaved fashion.
+            fh.seek(200000, 0)
+            recording = np.fromfile(fh, dtype='h').reshape((-1, 4)).T
+            dio = recording[-1] / (2 ** (16-1))
+            stim_indices = np.flatnonzero(dio < -0.1)
+            result['recording'] = recording[:3]
+            # scale to fraction of sys.maxint
+            result['dio'] = dio
+            result['stim_indices'] = stim_indices
 
-        result['n_channels'] = result['cont_data_suppl'][0]
-        result['sample_time'] = result['cont_data_suppl'][6] / 1e9
-        result['fs'] = 1 / result['sample_time']
+    result['n_channels'] = result['cont_data_suppl'][0]
+    result['sample_time'] = result['cont_data_suppl'][6] / 1e9
+    result['fs'] = 1 / result['sample_time']
 
-        recording_type = result['cont_data_suppl'][1]
-        result['recording_type'] = recording_type_map[recording_type]
+    recording_type = result['cont_data_suppl'][1]
+    result['recording_type'] = recording_type_map[recording_type]
 
     # 1 rare, 2 cond, 3 alt
     result['recording_phase'] = result['cont_data_suppl'][2]
@@ -109,7 +113,6 @@ def read_cam(filename):
             'stimulator_type': result['cont_data_suppl'][318 + i * 15],
         })
 
-
     # Apparently channel #4 is the digital channel
     channel_settings = []
     for i in range(result['n_channels']):
@@ -128,21 +131,32 @@ def read_cam(filename):
 
 def extract_cam_epochs(result, offset=0, duration=0.5, filter_lb=80,
                        filter_ub=3000, filter_order=800):
+
     # First, filter the signal so we don't have to worry about padding to
     # control for filter edges when epoching.
-    b = signal.firwin(filter_order, (filter_lb, filter_ub), fs=result['fs'],
-                      pass_zero='bandpass')
-    w_filt = signal.filtfilt(b, 1, result['recording'], axis=-1)
+    if filter_order is not None:
+        b = signal.firwin(filter_order, (filter_lb, filter_ub), fs=result['fs'],
+                        pass_zero='bandpass')
+        w = signal.filtfilt(b, 1, result['recording'], axis=-1)
+    else:
+        w = result['recording']
 
     # Find the start/end edges of the epochs
     o = int(round(result['fs'] * offset))
     d = int(round(result['fs'] * duration))
     i_start = result['stim_indices'] + o
+
+    # Address a bug where IHS suddenly inserts a large number of start times
+    # into the array, each incremented by 1. Not sure what is happening here.
+    m = np.diff(np.pad(i_start, (1, 0))) > 1
+    i_start = i_start[m]
+    log.warn('Removing %d epochs', (~m).sum())
+
     i_end = i_start + d
-    i_max = w_filt.shape[-1]
+    i_max = w.shape[-1]
     m = (0 <= i_start) & (i_start < i_max) & (0 <= i_end) & (i_end < i_max)
 
-    epochs = [w_filt[..., lb:ub][np.newaxis] \
+    epochs = [w[..., lb:ub][np.newaxis] \
               for (lb, ub) in zip(i_start[m], i_end[m])]
     epochs = np.concatenate(epochs)
     if len(epochs) % 2:
