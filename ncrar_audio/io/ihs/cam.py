@@ -54,7 +54,6 @@ def read_cam(filename, header_only=False):
                 result[name] = np.fromfile(fh, dtype=dtype, count=count)
 
         n_channels = result['n_channels'] = result['cont_data_suppl'][0]
-        print(n_channels)
 
         if not header_only:
             # There are four channels. the int16 (2-byte) samples are stored in
