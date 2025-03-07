@@ -53,19 +53,17 @@ def read_cam(filename, header_only=False):
             else:
                 result[name] = np.fromfile(fh, dtype=dtype, count=count)
 
+        n_channels = result['n_channels'] = result['cont_data_suppl'][0]
+        print(n_channels)
+
         if not header_only:
             # There are four channels. the int16 (2-byte) samples are stored in
             # interleaved fashion.
             fh.seek(200000, 0)
-            recording = np.fromfile(fh, dtype='h').reshape((-1, 4)).T
-            dio = recording[-1] / (2 ** (16-1))
-            stim_indices = np.flatnonzero(dio < -0.1)
-            result['recording'] = recording[:3]
-            # scale to fraction of sys.maxint
-            result['dio'] = dio
-            result['stim_indices'] = stim_indices
+            recording = np.fromfile(fh, dtype='h').reshape((-1, n_channels)).T
+            result['dio'] = recording[-1]
+            result['recording'] = recording[:-1]
 
-    result['n_channels'] = result['cont_data_suppl'][0]
     result['sample_time'] = result['cont_data_suppl'][6] / 1e9
     result['fs'] = 1 / result['sample_time']
 
@@ -129,37 +127,83 @@ def read_cam(filename, header_only=False):
     return result
 
 
+
+def extract_timestamps(dio):
+    ts = {}
+
+    # These are the start and end markers of the sequence. In at least one file
+    # I looked at, the end marker was missing for some reason. We need to
+    # handle that edge-case.
+    m_start_end = (dio > -30e3) & (dio <= -20e3)
+    bounds = np.flatnonzero(m_start_end)
+    if len(bounds) == 2:
+        lb, _ = ts['start'], ts['end'] = bounds
+    elif len(bounds) == 1:
+        # If end marker is missing, then set it to None
+        lb, _ = ts['start'], ts['end'] = bounds[0], None
+
+    else:
+        raise ValueError('Unexpected marker found in DIO')
+
+    ts['stim'] = {}
+    get_id = lambda x: int(np.abs(x) % 10)
+
+    # Check to see if start marker of sequence also encodes start marker of
+    # stimulus.
+    if get_id(lb) != 0:
+        ts['stim'].setdefault(get_id(dio[lb]), []).append(lb)
+
+    # Now, pull out the stimulus start times.
+    m_stim = (dio > -17e3) & (dio <= -16e3)
+    for i in np.flatnonzero(m_stim):
+        ts['stim'].setdefault(get_id(dio[i]), []).append(i)
+    for k, v in ts['stim'].items():
+        ts['stim'][k] = np.array(v)
+
+    return ts
+
+
 def extract_cam_epochs(result, offset=0, duration=0.5, filter_lb=80,
                        filter_ub=3000, filter_order=800):
+
+    # Find the timestamps we want to extract.
+    ts = extract_timestamps(result['dio'])
 
     # First, filter the signal so we don't have to worry about padding to
     # control for filter edges when epoching.
     if filter_order is not None:
-        b = signal.firwin(filter_order, (filter_lb, filter_ub), fs=result['fs'],
-                        pass_zero='bandpass')
+        b = signal.firwin(filter_order, (filter_lb, filter_ub),
+                          fs=result['fs'], pass_zero='bandpass')
         w = signal.filtfilt(b, 1, result['recording'], axis=-1)
     else:
         w = result['recording']
+    dio = result['dio']
 
     # Find the start/end edges of the epochs
     o = int(round(result['fs'] * offset))
     d = int(round(result['fs'] * duration))
-    i_start = result['stim_indices'] + o
 
-    # Address a bug where IHS suddenly inserts a large number of start times
-    # into the array, each incremented by 1. Not sure what is happening here.
-    m = np.diff(np.pad(i_start, (1, 0))) > 1
-    i_start = i_start[m]
-    log.warn('Removing %d epochs', (~m).sum())
+    all_epochs = {}
+    n_error = 0
+    for key, indices in ts['stim'].items():
+        epochs = []
+        i_start = indices + o
+        i_end = i_start + d
 
-    i_end = i_start + d
-    i_max = w.shape[-1]
-    m = (0 <= i_start) & (i_start < i_max) & (0 <= i_end) & (i_end < i_max)
+        for i, (lb, ub) in enumerate(zip(i_start, i_end)):
+            m = dio[lb:ub] < -32000
+            if m.any():
+                n_error += 1
+            else:
+                e = w[..., lb:ub][np.newaxis]
+                if e.shape[-1] != d:
+                    log.warn('Dropping truncated epoch %d', i)
+                else:
+                    epochs.append(e)
 
-    epochs = [w[..., lb:ub][np.newaxis] \
-              for (lb, ub) in zip(i_start[m], i_end[m])]
-    epochs = np.concatenate(epochs)
-    if len(epochs) % 2:
-        epochs = epochs[:-1]
+        log.warn('Found %d epochs for stim ID %d', len(epochs), key)
+        all_epochs[key] = np.concatenate(epochs)
 
-    return epochs
+    if n_error:
+        log.warn('Could not read %d epochs due to dropped buffer', n_error)
+    return all_epochs
