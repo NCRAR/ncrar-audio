@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
+from psiaudio import util
+
 # Note, most of this code is derived from code written by Sam Gordon. I don't
 # have the original reference documentation from IHS (despite asking for it),
 # so I've done my best. The important thing is that the epochs are properly
@@ -126,7 +128,6 @@ def read_cam(filename, header_only=False):
     return result
 
 
-
 def extract_timestamps(dio):
     ts = {}
 
@@ -135,6 +136,7 @@ def extract_timestamps(dio):
     # handle that edge-case.
     m_start_end = (dio > -30e3) & (dio <= -20e3)
     bounds = np.flatnonzero(m_start_end)
+    bounds = [int(b) for b in bounds]
     if len(bounds) == 2:
         lb, _ = ts['start'], ts['end'] = bounds
     elif len(bounds) == 1:
@@ -159,14 +161,21 @@ def extract_timestamps(dio):
     for k, v in ts['stim'].items():
         ts['stim'][k] = np.array(v)
 
+    m = dio < -32000
+    ts['errors'] = {
+        'n_missing_timepoints': int(m.sum()),
+        'missing_segments': util.epochs(m),
+    }
+
     return ts
 
 
 def extract_cam_epochs(result, offset=0, duration=0.5, filter_lb=80,
-                       filter_ub=3000, filter_order=800):
+                       filter_ub=3000, filter_order=800, ts=None):
 
     # Find the timestamps we want to extract.
-    ts = extract_timestamps(result['dio'])
+    if ts is None:
+        ts = extract_timestamps(result['dio'])
 
     # First, filter the signal so we don't have to worry about padding to
     # control for filter edges when epoching.
@@ -184,7 +193,10 @@ def extract_cam_epochs(result, offset=0, duration=0.5, filter_lb=80,
 
     all_epochs = {}
     n_error = 0
+
+    missing = ts['errors']['missing_stim_segments'] = {}
     for key, indices in ts['stim'].items():
+        missing[key] = []
         epochs = []
         i_start = indices + o
         i_end = i_start + d
@@ -193,10 +205,12 @@ def extract_cam_epochs(result, offset=0, duration=0.5, filter_lb=80,
             m = dio[lb:ub] < -32000
             if m.any():
                 n_error += 1
+                missing[key].append(i)
             else:
                 e = w[..., lb:ub][np.newaxis]
                 if e.shape[-1] != d:
                     log.warn('Dropping truncated epoch %d', i)
+                    missing.setdefault(key, []).append(i)
                 else:
                     epochs.append(e)
 
