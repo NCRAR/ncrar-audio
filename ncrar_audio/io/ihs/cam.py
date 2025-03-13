@@ -151,7 +151,7 @@ def extract_timestamps(dio):
 
     # Check to see if start marker of sequence also encodes start marker of
     # stimulus.
-    if get_id(lb) != 0:
+    if (lb is not None) and (get_id(lb) != 0):
         ts['stim'].setdefault(get_id(dio[lb]), []).append(lb)
 
     # Now, pull out the stimulus start times.
