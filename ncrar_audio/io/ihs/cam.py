@@ -142,12 +142,12 @@ def extract_timestamps(dio):
     elif len(bounds) == 1:
         # If end marker is missing, then set it to None
         lb, _ = ts['start'], ts['end'] = bounds[0], None
-
-    else:
-        raise ValueError('Unexpected marker found in DIO')
+    elif len(bounds) == 0:
+        # No start marker found for the DIO
+        lb = None
 
     ts['stim'] = {}
-    get_id = lambda x: int(np.abs(x) % 10)
+    get_id = lambda x: int(np.abs(x) % 1000)
 
     # Check to see if start marker of sequence also encodes start marker of
     # stimulus.
