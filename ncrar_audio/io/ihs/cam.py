@@ -15,8 +15,10 @@ from psiaudio import util
 # so I've done my best. The important thing is that the epochs are properly
 # returned!
 
-def read_cam(filename, header_only=False):
+def read_cam(filename, header_only=False, data_dtype='h'):
     description = [
+        # Based on SmartEP array. 2000 bytes encoded as unsigned short (1000
+        # samples of 2 byte integers).
         ('std_ihs_ep', 1000, 'h'),
         ('cont_data_suppl', 4000, 'i'),
         ('seq1_locs', 5000, 'i'),
@@ -61,7 +63,7 @@ def read_cam(filename, header_only=False):
             # There are four channels. the int16 (2-byte) samples are stored in
             # interleaved fashion.
             fh.seek(200000, 0)
-            recording = np.fromfile(fh, dtype='h').reshape((-1, n_channels)).T
+            recording = np.fromfile(fh, dtype=data_dtype).reshape((-1, n_channels)).T
             result['dio'] = recording[-1]
             result['recording'] = recording[:-1]
 
@@ -116,13 +118,12 @@ def read_cam(filename, header_only=False):
     channel_settings = []
     for i in range(result['n_channels']):
         channel_settings.append({
-            # gain in uv?
-            'gain': result['cont_data_suppl'][400 + i * 10] / 100,
-            # what units???
-            'high_pass': result['cont_data_suppl'][401 + i * 10] / 1000,
-            'low_pass': result['cont_data_suppl'][402 + i * 10] / 1000,
+            # gain in 1k
+            'gain': result['cont_data_suppl'][399 + i * 10] / 1000,
+            'high_pass': result['cont_data_suppl'][400 + i * 10] / 1000,
+            'low_pass': result['cont_data_suppl'][401 + i * 10] / 1000,
             # notch filter on or off
-            'notch': result['cont_data_suppl'][403 + i * 10] / 1000,
+            'notch': result['cont_data_suppl'][402 + i * 10] / 1000,
         })
     result['channel_settings'] = pd.DataFrame(channel_settings)
     return result
