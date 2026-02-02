@@ -1,3 +1,6 @@
+import os
+os.environ['SD_ENABLE_ASIO'] = '1'
+
 import logging
 log = logging.getLogger(__name__)
 
