@@ -23,15 +23,17 @@ def _cos_waveform(fs, pulse_frequency=128, pulse_cycles=1, repeat=1):
     return y.ravel()
 
 
-def make_trigger(fs, n, shape='square', shape_settings=None):
+def make_trigger(fs, n=None, shape='square', shape_settings=None):
     if shape_settings is None:
         shape_settings = {}
     fn = globals()[f'_{shape}_waveform']
     trig = fn(fs, **shape_settings)
+    if n is None:
+        return trig
+
     if len(trig) > n:
         n_extra = len(trig) - n
         raise ValueError(f'Trigger sequence is too long by {n_extra} samples')
-
     waveform = np.zeros(n)
     waveform[:len(trig)] = trig
     return waveform

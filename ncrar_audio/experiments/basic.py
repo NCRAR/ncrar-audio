@@ -9,7 +9,7 @@ from ncrar_audio import triggers
 
 
 def play_repeat(n_stim, stim_cb, stim_params, extra_gain, test_ear,
-                stim_rate=None, stim_isi=None, n_blocks=2):
+                stim_rate=None, stim_iti=None, n_blocks=2):
     '''
     Parameters
     ----------
@@ -27,16 +27,20 @@ def play_repeat(n_stim, stim_cb, stim_params, extra_gain, test_ear,
     test_ear : {'right', 'left', 'binaural'}
         Which ear to test?
     stim_rate : {None, float}
-        Rate at which to present stimuli (Hz). If provided, `stim_isi` must be
+        Rate at which to present stimuli (Hz). If provided, `stim_iti` must be
         set to None.
-    stim_isi : {None, float}
-        Interstimulus interval. If provided, `stim_rate` must be set to None.
+    stim_iti : {None, float}
+        Interstimulus interval (from onset of one stimulus to onset of next
+        stimulus). If provided, `stim_iti` must be set to None.
     n_blocks : int
         Number of replicates to acquire.
     '''
-    # Check values for input parameters. 
-    if stim_rate is not None and stim_isi is not None:
-        raise ValueError('Must provide either stim_rate or stim_isi')
+    # Check values for input parameters.
+    if stim_rate is not None and stim_iti is not None:
+        raise ValueError('Must provide either stim_rate or stim_iti')
+
+    if test_ear not in ('none', 'right', 'left', 'binaural'):
+        raise ValueError('Unrecognized test ear')
 
     # Connect to the Babyface. Specify that the audio goest through the
     # earphones and the trigger goes through the XLR1 output. This means that
@@ -54,47 +58,41 @@ def play_repeat(n_stim, stim_cb, stim_params, extra_gain, test_ear,
     # handles the details behind the scenes. his is an example of how the
     #calibration = FlatCalibration.as_attenuation()
     #amplitude = level = calibration.get_sf(extra_gain)
+    cp = DummyCPod()
 
     amplitude = 10 ** (extra_gain / 20)
     print(f'Sampling rate is {bface.fs} Hz')
     print(f'Stimulus amplitude is {amplitude}')
-    waveform = stim_cb(bface.fs, amplitude, **stim_params)
-    cp = DummyCPod()
 
-    # In other scripts, we may use the `delays` parameter of the queue `append`
-    # method to control stimulus timing. Since the ABR stimulus is shorter than
-    # the default duration of the cos trigger designed by Sam Gordon, we need
-    # to encode the delay in the stimulus itself so that the stimulus and
-    # trigger queues can be properly aligned.
+
+    # Create the stimuli and triggers. Ensure they are all equivalent length so
+    # that they align properly.
+    stim = stim_cb(bface.fs, amplitude, **stim_params)
+    t1 = triggers.make_trigger(bface.fs, shape='cos')
+    t2 = triggers.make_trigger(bface.fs, shape='cos', shape_settings={'repeat': 2})
+    n_samples = max(len(stim), len(t1), len(t2))
+    stim = np.pad(stim, (0, n_samples - len(stim)), mode='constant', constant_values=0)
+    t1 = np.pad(t1, (0, n_samples - len(t1)), mode='constant', constant_values=0)
+    t2 = np.pad(t2, (0, n_samples - len(t2)), mode='constant', constant_values=0)
+    duration = n_samples / bface.fs
+
     if stim_rate is not None:
-        total_samples = int(bface.fs // stim_rate)
-    elif stim_isi is not None:
-        if len(stim_isi) == 2:
-            lb, ub = stim_isi
-            def delays(seed):
-                # Build the delays array
-                rng = np.random.default_rng(seed=seed)
-                nonlocal lb
-                nonlocal ub
-                while True:
-                    yield next(rng.uniform(lb, ub))
-        else:
-            isi_samples = int(bface.fs * stim_isi)
-            total_samples = isi_samples + waveform.shape[-1]
-    else:
-        raise ValueError('Must provide stim_rate or stim_isi')
+        stim_iti = (1 / stim_rate, 1 / stim_rate)
+    elif isinstance(stim_iti, (float, int)):
+        stim_iti = (stim_iti, stim_iti)
+    delay_lb = stim_iti[0] - duration
+    delay_ub = stim_iti[1] - duration
 
-    print(f'True stimulus rate is {bface.fs / total_samples:.2f} Hz')
-    stim = np.zeros(total_samples)
-    stim[:len(waveform)] = waveform
+    def delays(seed):
+        nonlocal delay_lb
+        nonlocal delay_ub
+        rng = np.random.default_rng(seed=seed)
+        while True:
+            yield rng.uniform(delay_lb, delay_ub)
 
-    # Now, let's make a trigger waveform of the same length as the stimulus.
-    # (i.e., same number of samples). By ensuring the trigger waveform is the
-    # same length as the wav file, it makes it super-easy to ensure the timing
-    # is accurate.
-    t1 = triggers.make_trigger(bface.fs, stim.shape[-1], shape='cos')
-    t2 = triggers.make_trigger(bface.fs, stim.shape[-1], shape='cos',
-                               shape_settings={'repeat': 2})
+    #print(f'True stimulus rate is {bface.fs / total_samples:.2f} Hz')
+    #stim = np.zeros(total_samples)
+    #stim[:len(waveform)] = waveform
 
     for block in range(n_blocks):
         with cp.set_code(block):
@@ -124,8 +122,8 @@ def play_repeat(n_stim, stim_cb, stim_params, extra_gain, test_ear,
             # with the waveform onsets.
             trig_queue = BlockedFIFOSignalQueue()
             trig_queue.set_fs(bface.fs)
-            trig_queue.append(t1, n_stim // 2, delays=1)
-            trig_queue.append(t2, n_stim // 2, delays=2)
+            trig_queue.append(t1, n_stim // 2, delays=delays(1))
+            trig_queue.append(t2, n_stim // 2, delays=delays(2))
 
             queues = [left_queue, right_queue, trig_queue]
 

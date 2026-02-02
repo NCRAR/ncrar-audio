@@ -31,7 +31,7 @@ class CPod:
         self.dev.set_lines(0)
 
 
-def DummyCPod:
+class DummyCPod:
 
     def set_code(self, code):
         return CodeManager(self)
