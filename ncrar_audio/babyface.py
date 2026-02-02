@@ -41,7 +41,7 @@ class Babyface(SoundDevice):
 
     def __init__(self, output_channels='earphones', trigger_channels=None,
                  ip_address=None, send_port=7001, recv_port=9001,
-                 use_osc=True):
+                 use_osc=True, name='ASIO Fireface USB'):
         self._volume_db = {}
         self._mic_gain_db = {}
         self._lock = Lock()
@@ -57,7 +57,6 @@ class Babyface(SoundDevice):
         self.set_output(output_channels)
         self.set_trigger(trigger_channels)
 
-        name = 'ASIO Fireface USB'
         super().__init__(name, name, input_scale=0.3395)
 
     def set_output(self, output_channels):
