@@ -25,6 +25,22 @@ def make_ram_efr(fs, amplitude, fc, fm, duration, duty_cycle, alpha):
     return tone * envelope
 
 
+def make_sam_efr(fs, amplitude, fc, fm, duration):
+    return stim.apply_cos2envelope(
+        waveform=stim.sam_tone(
+            fs=fs,
+            fc=fc,
+            fm=fm,
+            level=amplitude,
+            depth=1,
+            duration=duration,
+        ),
+        fs=fs,
+        rise_time=5e-3,
+        duration=duration
+    )
+
+
 def load_wav(fs, amplitude, wavfile):
     waveform = amplitude * stim.load_wav(fs, wavfile)
     if waveform.ndim != 1:
@@ -33,12 +49,21 @@ def load_wav(fs, amplitude, wavfile):
 
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('stim', choices=['RAM', 'SAM'])
+    args = parser.parse_args()
+
     import matplotlib.pyplot as plt
     from psiaudio import util
     fs = 100e3
-    stim = make_ram_efr(fs, 1, 4e3, 110, 0.5, 0.25, 0)
-    psd = util.psd_df(stim, fs)
 
+    if args.stim == 'RAM':
+        stim = make_ram_efr(fs, 1, 4e3, 110, 0.5, 0.25, 0)
+    elif args.stim == 'SAM':
+        stim = make_sam_efr(fs, 1, 4e3, 110, 0.5)
+
+    psd = util.psd_df(stim, fs)
     figure, axes = plt.subplots(1, 2)
     axes[0].plot(stim)
     axes[1].plot(util.db(psd))
